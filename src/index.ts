@@ -3,7 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { SERVER_TOOLS } from "./constants";
-import { runOllama } from "./ollama-executor";
+import { listModels, runOllama, startOllama } from "./ollama-executor";
 
 const app = express();
 const port = 4269;
@@ -30,17 +30,15 @@ app.post('/mcp', async (req, res) => {
       version: "1.0.0"
     });
 
-    server.tool(SERVER_TOOLS.LIST_MODELS, async (_) => {
-        const { stdout, stderr} = await runOllama("list", []);
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Available Ollama models:\n${stdout}`
-            }
-          ]
-        }
-    });
+    server.registerTool(SERVER_TOOLS.LIST_MODELS, {
+      title: "List Models",
+      description: "Lists all available models",
+    }, async() => ({
+      content: [{
+        type: "text",
+        text: "Available models:\n\n" + await listModels()
+      }]
+    }));
 
     // Connect to the MCP server
     await server.connect(transport);
@@ -48,6 +46,6 @@ app.post('/mcp', async (req, res) => {
     await transport.handleRequest(req, res, req.body);
   });
 
-app.listen(port, () => {
+app.listen(port, async() => {
     console.log(`Server listening on port ${port}`);
 });
